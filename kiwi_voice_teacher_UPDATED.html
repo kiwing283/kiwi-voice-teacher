@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiwi - AI English Teacher</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2em; background: #f0f0f0; }
+    h1 { color: #2c3e50; }
+    #transcript, #response { margin-top: 1em; font-size: 1.1em; }
+    button { padding: 0.5em 1em; margin: 0.5em; font-size: 1em; }
+  </style>
+</head>
+<body>
+  <h1>🎓 Kiwi - Your English Teacher from New Zealand</h1>
+  <p>Press the microphone, speak English, and Kiwi will answer you in her voice!</p>
+  <button onclick="startRecording()">🎙 Speak</button>
+  <div id="transcript"><strong>You said:</strong> <span></span></div>
+  <div id="response"><strong>Kiwi says:</strong> <span></span></div>
+  <audio id="audioPlayer" controls autoplay style="margin-top: 1em;"></audio>
+
+  <script>
+    let recognition;
+    const transcriptSpan = document.querySelector("#transcript span");
+    const responseSpan = document.querySelector("#response span");
+    const audioPlayer = document.getElementById("audioPlayer");
+
+    function startRecording() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Your browser does not support speech recognition. Try Google Chrome.");
+        return;
+      }
+      recognition = new webkitSpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.onresult = async function(event) {
+        const userText = event.results[0][0].transcript;
+        transcriptSpan.textContent = userText;
+
+        const chatGptReply = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer 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"
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: "You are Kiwi, a friendly English teacher from New Zealand. Speak slowly and clearly to beginner English students." },
+              { role: "user", content: userText }
+            ]
+          })
+        }).then(res => res.json());
+
+        const replyText = chatGptReply.choices[0].message.content.trim();
+        responseSpan.textContent = replyText;
+
+        const audioUrl = await fetch("https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM", {
+          method: "POST",
+          headers: {
+            "accept": "audio/mpeg",
+            "xi-api-key": "sk_544c63f326daafb3358e40fbedd4450b7068a4aefb4aa5f3",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            text: replyText,
+            voice_settings: { stability: 0.3, similarity_boost: 0.8 }
+          })
+        }).then(res => res.blob());
+
+        const audioBlob = URL.createObjectURL(audioUrl);
+        audioPlayer.src = audioBlob;
+      };
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
